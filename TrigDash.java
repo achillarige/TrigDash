@@ -1,7 +1,7 @@
 // Ananth Chillarige, Forest Yang
 // TrigDash.java
 
-//This is our third draft.
+//This is our second draft.
 
 /* Game description: The user controls a character that appears to be automatically moving forward on the
 ground. The user can press the space bar to jump to avoid obstacles in the air and on the ground. The user
@@ -35,6 +35,8 @@ public class TrigDash extends JFrame
 	private HomePanel hp;
 	private OptionsPanel op;
 	private GameplayHolder gh; 
+	private PowerupPanel pwp;
+	CardLayout gameCards = new CardLayout();
 
 	/*------------------- Close Forest  ----------------------------------*/
 
@@ -73,7 +75,7 @@ public class TrigDash extends JFrame
     private File ezList = new File("ez.txt");
     private File mdList = new File("md.txt");
     private File hdList = new File("hd.txt");
-    private Scanner fr = new Scanner();
+    //private Scanner fr = new Scanner();
     private PrintWriter writer;
 
     /*------------------- Close Ananth  ----------------------------------*/
@@ -324,9 +326,7 @@ public class TrigDash extends JFrame
 
 				else if(buttonName.equals("Credits"))
 				{
-					cp = new CreditsPanel();
-					holder.add(cp,"CreditsPanel");
-					cards.show(holder,"CreditsPanel");
+				
 					// timeLimiter.start();
 					// System.out.println(timeLimit);
 				}
@@ -340,7 +340,8 @@ public class TrigDash extends JFrame
 		private GamePanel gp;
 		private PausePanel pp;
 		private GameOverPanel gop;
-		CardLayout gameCards = new CardLayout();
+		//private PowerupPanel pwp;
+		
 		//constructor (Card Layout)
 		public GameplayHolder()
 		{
@@ -358,6 +359,9 @@ public class TrigDash extends JFrame
 			//add GameOverPanel
 			gop = new GameOverPanel();
 			add(gop,"GameOverPanel");
+
+			pwp = new PowerupPanel();
+			add(pwp,"PowerupPanel");
 		}
 		
 		public void paintComponent(Graphics g)
@@ -434,7 +438,7 @@ public class TrigDash extends JFrame
 						if(lethal[i]==false)
 						{
 							gameTimer.stop();
-							g.drawString("Earned a powerup!",charx,300);
+							gameCards.show(gh,"PowerupPanel");	
 						}	
 						else
 						{
@@ -443,7 +447,7 @@ public class TrigDash extends JFrame
 							scoreReport.setText("Congrats! You earned "+score+" points!");
 							//taking file and converting Array
 							//using different file depending on difficulty
-							File file;
+							/*File file;
 							if(difficulty == 1)
 								file = ezList;
 							else if(difficulty == 2)
@@ -527,7 +531,7 @@ public class TrigDash extends JFrame
 							{
 								System.out.println("File Not Found");
 								System.exit(1);
-							}
+							}*/
 							gameCards.show(gh,"GameOverPanel");							
 						}
 							
@@ -774,15 +778,14 @@ public class TrigDash extends JFrame
 			ButtonGroup degRad  = new ButtonGroup();
 			
 			JRadioButton degrees = new JRadioButton("Degrees");
-			degrees.addActionListener(this);
 			add(degrees);
 			degRad.add(degrees);
 			degrees.setSelected(true);
 			
 			JRadioButton radians = new JRadioButton("Radians");
-			radians.addActionListener(this);
 			add(radians);
 			degRad.add(radians);
+
 		}
 		public void paintComponent(Graphics g)//paintComponent
 		{
@@ -838,7 +841,7 @@ public class TrigDash extends JFrame
 	}
 	
 	
-	public class CreditsPanel extends JPanel
+	public class PowerupPanel extends JPanel
 	{
 		//constructor
 			//import pictures of us(maybe)
@@ -860,7 +863,7 @@ public class TrigDash extends JFrame
 		private String longFunc;
 		private String funcFormula;
 	
-		public CreditsPanel() //constructor
+		public PowerupPanel() //constructor
 		{
 			setBackground(Color.PINK);
 			
@@ -935,7 +938,7 @@ public class TrigDash extends JFrame
 					answerField.addActionListener(this);
 					add(answerField);
 					
-					timeLimit = frqLimit;
+					//timeLimit = frqLimit;
 				}
 				else
 				{
@@ -973,7 +976,7 @@ public class TrigDash extends JFrame
 						add(choices[i]);
 					}
 					
-					timeLimit = mcLimit;
+					//timeLimit = mcLimit;
 				}
 			}
 		
@@ -1032,7 +1035,7 @@ public class TrigDash extends JFrame
 						answerWrong.setVisible(true);
 						correct = false;
 					}
-					questionCards.show(cp,"FeedbackPanel");
+					questionCards.show(pwp,"FeedbackPanel");
 				}
 				else //else if free response
 				{
@@ -1058,7 +1061,7 @@ public class TrigDash extends JFrame
 							correct = false; 
 						}
 				
-						questionCards.show(cp,"FeedbackPanel");
+						questionCards.show(pwp,"FeedbackPanel");
 					}
 				}
 				fp.repaint(); //repaint FeedbackPanel to draw arc if necessary
@@ -1109,9 +1112,11 @@ public class TrigDash extends JFrame
 			}
 			public void actionPerformed(ActionEvent e)
 			{
-				cards.show(holder,"HomePanel");
+				gameCards.show(gh,"GamePanel");
+				gameTimer.start();
 			}
 		}
+}
 }
 
 /*------------------------ Close Forest ------------------------*/
