@@ -69,15 +69,16 @@ public class TrigDash extends JFrame
 
     //variables used for high scores
     int difficulty = 0; //1 is ez, 2 is md, 3 is hd
-    private int[] ezArray = new int[10];
-    private int[] mdArray = new int[10];
-    private int[] hdArray = new int[10];
+    private int[] ezArray = new int[1000];
+    private int[] mdArray = new int[1000];
+    private int[] hdArray = new int[1000];
+    private String[] names = new String[1000];
     private File ezList = new File("ez.txt");
     private File mdList = new File("md.txt");
     private File hdList = new File("hd.txt");
-    //private Scanner fr = new Scanner();
+    private Scanner fr;
     private PrintWriter writer;
-
+	private JTextArea scoreBoard;
     /*------------------- Close Ananth  ----------------------------------*/
 
     /*------------------- Open Forest  ----------------------------------*/
@@ -193,6 +194,7 @@ public class TrigDash extends JFrame
 		frqLimit = 20;
 		mcLimit = 25;
 		scrollVelocity = 7;
+		
 		//Open Forest
 		for(int n = 0;n < degrees.length;n++)
 			degrees[n] += "\u00b0";
@@ -201,7 +203,6 @@ public class TrigDash extends JFrame
 		for(int i = 0;i < angles.length;i++)
 			angles[i] = degrees[i];
 		
-		angles = new String[16];
 		//close Forest
 		holder = new GameHolder();
 		setContentPane(holder);
@@ -438,6 +439,9 @@ public class TrigDash extends JFrame
 						if(lethal[i]==false)
 						{
 							gameTimer.stop();
+							int width = (int)(rectangles[i].getWidth())+(int)(trigger.getWidth());
+							g.translate(width*-scrollVelocity,0);
+							charx+=width;
 							gameCards.show(gh,"PowerupPanel");	
 						}	
 						else
@@ -447,82 +451,23 @@ public class TrigDash extends JFrame
 							scoreReport.setText("Congrats! You earned "+score+" points!");
 							//taking file and converting Array
 							//using different file depending on difficulty
-							/*File file;
+							File file;
 							if(difficulty == 1)
 								file = ezList;
 							else if(difficulty == 2)
 								file = mdList;
 							else
 								file = hdList;
-							fr = new Scanner(file);
-							if(difficulty == 1)
+							try
 							{
-								for(i=0;i<ezArray.length;i++)
-									//use string methods to properly retreive scores
-
+								fr = new Scanner(file);
 							}
-							else if(difficulty == 2)
+							catch
 							{
-								for(i=0;i<mdArray.length;i++)
-									//use string methods to properly retreive scores
-
+								System.out.println("File Not Found");
+								System.exit(1);								
 							}
-							if(difficulty == 3)
-							{
-								for(i=0;i<hdArray.length;i++)
-									//use string methods to properly retreive scores
-
-							}
-
-							//saving new score to array and sorting
-							//depending on difficulty using a different array
-							if(difficulty == 1)
-							{
-								for(i=0;i<ezArray.length;i++)
-								{
-									if(i == 0)
-									{
-										if(ezArray[i]<score)
-											ezArray[i] = score;	
-									}
-									else if(ezArray[i] < score  && ezArray[i-1] != 0)
-										ezArray[i] = score;									
-								}
-
-
-							}
-							else if(difficulty == 2)
-							{
-								for(i=0;i<mdArray.length;i++)
-								{
-									if(i == 0)
-									{
-										if(mdArray[i]<score)
-											mdArray[i] = score;	
-									}
-									else if(mdArray[i] < score  && mdArray[i-1] != 0)
-										mdArray[i] = score;									
-								}
-
-
-							}
-							else if(difficulty == 3)
-							{
-								for(i=0;i<hdArray.length;i++)
-								{
-									if(i == 0)
-									{
-										if(hdArray[i]<score)
-											hdArray[i] = score;	
-									}
-									else if(hdArray[i] < score  && hdArray[i-1] != 0)
-										hdArray[i] = score;									
-								}
-
-
-							}
-
-							//instantiating PrintWriter and printing to the appropriate Text File
+							 
 							try
 							{
 								writer = new PrintWriter(file);
@@ -531,7 +476,130 @@ public class TrigDash extends JFrame
 							{
 								System.out.println("File Not Found");
 								System.exit(1);
-							}*/
+							} 
+							
+							writer.println(name+":"+score); //writing new score to file
+							writer.close();
+							 
+							int z = 0;
+							while(fr.hasNext()) //saving scores to array
+							{
+								String line = fr.nextLine();
+								if(difficulty == 1)
+									ezArray[z] = Integer.parseInt(line.substring(line.indexOf(':')+1,line.length()));
+								else if(difficulty == 2)
+									mdArray[z] = Integer.parseInt(line.substring(line.indexOf(':')+1,line.length()));
+								else if(difficulty == 3)
+									hdArray[z] = Integer.parseInt(line.substring(line.indexOf(':')+1,line.length()));
+								names[z] = line.substring(0,line.indexOf(':'));
+								z++;
+							}
+							if(difficulty == 1) //sorting
+							{								
+								//sorting by ascending order
+								for(int x=ezArray.length; x>1; x--)
+								{
+									//finding index of largest element
+									int max = 0;									
+									for(int y =1; y<x; y++)
+									{
+										if(ezArray[y] > ezArray[max])
+											max = i;										
+									}
+									
+									int tempVal = ezArray[max];
+									String tempString = names[max];
+									ezArray[max] = ezArray[x-1];
+									names[max] = names[x-1];
+									ezArray[x-1] = tempVal;	
+									names[x-1] = tempString;								
+								}
+								//reversing the array
+								for(int a=0; a<((ezArray.length)/2); a++)
+								{
+									int temp = ezArray[a];
+									String tempS = names[a];
+									ezArray[a] = ezArray[ezArray.length-1-a];
+									ezArray[ezArray.length-1-a] = temp;
+									names[a] = names[names.length-1-a];
+									names[names.length-1-a] = tempS;
+									
+									
+								}								
+							}
+							else if(difficulty == 2) //sorting
+							{								
+								//sorting by ascending order
+								for(int x=mdArray.length; x>1; x--)
+								{
+									//finding index of largest element
+									int max = 0;									
+									for(int y =1; y<x; y++)
+									{
+										if(mdArray[y] > mdArray[max])
+											max = i;										
+									}
+									
+									int tempVal = mdArray[max];
+									String tempString = names[max];
+									mdArray[max] = mdArray[x-1];
+									names[max] = names[x-1];
+									mdArray[x-1] = tempVal;	
+									names[x-1] = tempString;								
+								}
+								//reversing the array
+								for(int a=0; a<((mdArray.length)/2); a++)
+								{
+									int temp = mdArray[a];
+									String tempS = names[a];
+									mdArray[a] = mdArray[mdArray.length-1-a];
+									mdArray[mdArray.length-1-a] = temp;
+									names[a] = names[names.length-1-a];
+									names[names.length-1-a] = tempS;
+									
+									
+								}								
+							}
+							else if(difficulty == 3) //sorting
+							{								
+								//sorting by ascending order
+								for(int x=hdArray.length; x>1; x--)
+								{
+									//finding index of largest element
+									int max = 0;									
+									for(int y =1; y<x; y++)
+									{
+										if(hdArray[y] > hdArray[max])
+											max = i;										
+									}
+									
+									int tempVal = hdArray[max];
+									String tempString = names[max];
+									hdArray[max] = hdArray[x-1];
+									names[max] = names[x-1];
+									hdArray[x-1] = tempVal;	
+									names[x-1] = tempString;								
+								}
+								//reversing the array
+								for(int a=0; a<((hdArray.length)/2); a++)
+								{
+									int temp = hdArray[a];
+									String tempS = names[a];
+									hdArray[a] = hdArray[mdArray.length-1-a];
+									hdArray[mdArray.length-1-a] = temp;
+									names[a] = names[names.length-1-a];
+									names[names.length-1-a] = tempS;
+									
+									
+								}								
+							}
+							
+							//setting text for the scoreBoard
+							
+
+							
+							
+							
 							gameCards.show(gh,"GameOverPanel");							
 						}
 							
@@ -897,7 +965,6 @@ public class TrigDash extends JFrame
 				//for question
 				angleIndex = (int)(Math.random()*16+0);
 				trigRow = (int)(Math.random()*3+0);
-				questionAngle = angles[angleIndex];
 				
 				String func = "";
 				if(trigRow == 0)
@@ -920,7 +987,7 @@ public class TrigDash extends JFrame
 				}
 				
 				JLabel question = new JLabel("What is " + func + "(" + 
-											 questionAngle + ")" + "?");
+											 angles[angleIndex] + ")" + "?");
 				add(question);
 				
 				//Math.Random to choose between multiple choice or free response
