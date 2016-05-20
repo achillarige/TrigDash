@@ -1,0 +1,6 @@
+Forest:2000000
+Ananth:1000000
+Player:26050
+Player:25400
+Player:23650
+Player:21675

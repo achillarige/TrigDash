@@ -1,7 +1,7 @@
 // Ananth Chillarige, Forest Yang
 // TrigDash.java
 
-//This is our second draft.
+//This is our final draft.
 
 /* Game description: The user controls a character that appears to be automatically moving forward on the
 ground. The user can press the space bar to jump to avoid obstacles in the air and on the ground. The user
@@ -18,8 +18,6 @@ import javax.swing.event.*;
 
 import java.util.Scanner;
 import java.util.Arrays;
-/* import java.util.Timer;	
-import java.util.TimerTask; */
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -34,9 +32,12 @@ public class TrigDash extends JFrame
 	private CardLayout cards;
 	private HomePanel hp;
 	private OptionsPanel op;
+	private InstructionsHolder ih;
 	private GameplayHolder gh; 
 	private PowerupPanel pwp;
-	CardLayout gameCards = new CardLayout();
+	private CardLayout gameCards = new CardLayout();
+	private Font font;
+	private String imageName;
 
 	/*------------------- Close Forest  ----------------------------------*/
 
@@ -50,14 +51,20 @@ public class TrigDash extends JFrame
     private int framesPassed = 0;
     private int oldScore = 0;
     private JLabel scoreReport;
+    private int invincibility;
+    private int flight;
 
 	
 	private Timer gameTimer;
+	private Timer timeLimiter;
+	
 	private String name;
 	private int frqLimit;
 	private int mcLimit;
-	private int scrollVelocity;
+	private double scrollVelocity;
+	private double permScrollVelocity;
 	private boolean dead = false;
+	private int width;
 
 	private int[] widthArray = new int[1000];
     private int[] spacing = new int[1000];
@@ -66,19 +73,11 @@ public class TrigDash extends JFrame
     private boolean[] lethal= new boolean[1000];
     private Rectangle[] rectangles = new Rectangle[1000];
     private Rectangle trigger;	  
-
+    
     //variables used for high scores
-    int difficulty = 0; //1 is ez, 2 is md, 3 is hd
-    private int[] ezArray = new int[1000];
-    private int[] mdArray = new int[1000];
-    private int[] hdArray = new int[1000];
-    private String[] names = new String[1000];
-    private File ezList = new File("ez.txt");
-    private File mdList = new File("md.txt");
-    private File hdList = new File("hd.txt");
-    private Scanner fr;
-    private PrintWriter writer;
-	private JTextArea scoreBoard;
+    int difficulty = 1; //1 is ez, 2 is md, 3 is hd
+    private HighScoreTable hst;
+    private JTextArea scoreBoard;
     /*------------------- Close Ananth  ----------------------------------*/
 
     /*------------------- Open Forest  ----------------------------------*/
@@ -117,10 +116,6 @@ public class TrigDash extends JFrame
 			 "0","\u221a3/3","1","\u221a3",
 			 "undefined","-\u221a3","-1","-\u221a3/3"}
 		};
-	/* GameHolder gh = new GameHolder();
-	OptionsPanel op = new OptionsPanel();
-	InstructionsHolder ih = new InstructionsHolder();
-	CreditsPanel cp = new CreditsPanel(); */
 /*------------------- Close Forest  ----------------------------------*/
 
 /*------------------- Open Ananth  ----------------------------------*/
@@ -164,7 +159,7 @@ public class TrigDash extends JFrame
 			    //differentiating between obstacles and power boxes
 			    for(int i=0; i<lethal.length; i++) 
 			    {
-					int decider = (int)(Math.random()*4+1);
+					int decider = (int)(Math.random()*3+1);
 					if(decider == 1)
 						lethal[i] = false;				
 					else
@@ -190,10 +185,16 @@ public class TrigDash extends JFrame
 		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		setResizable(false);
 		
+		font = new Font("Helvetica",Font.BOLD,14);
 		name = "";
 		frqLimit = 20;
 		mcLimit = 25;
-		scrollVelocity = 7;
+		scrollVelocity = permScrollVelocity = 7;
+		invincibility = -1;
+		flight = -1;
+		
+		//name of image for loading character art
+		imageName = "character.png";
 		
 		//Open Forest
 		for(int n = 0;n < degrees.length;n++)
@@ -202,8 +203,10 @@ public class TrigDash extends JFrame
 		angles = new String[16];
 		for(int i = 0;i < angles.length;i++)
 			angles[i] = degrees[i];
-		
+			
+		font = new Font("Sans-Serif",Font.PLAIN,20);
 		//close Forest
+		
 		holder = new GameHolder();
 		setContentPane(holder);
 		setVisible(true);
@@ -230,6 +233,9 @@ public class TrigDash extends JFrame
 			op = new OptionsPanel();
 			add(op,"OptionsPanel");
 			
+			ih = new InstructionsHolder();
+			add(ih,"InstructionsHolder");
+
 			gh = new GameplayHolder();
 			add(gh,"GameplayHolder");
 		}
@@ -261,18 +267,27 @@ public class TrigDash extends JFrame
 		public class LogoPanel extends JPanel implements ActionListener
 		{
 			private JTextField nameField;
+			private Image logo;
+			private JButton saveName;
 			
 			public LogoPanel()
 			{
-				setBackground(Color.PINK);
+				setBackground(Color.WHITE);
 				
 				nameField = new JTextField("Name",10);
 				nameField.addActionListener(this);
 				add(nameField);
+				
+				saveName = new JButton("Save");
+				saveName.addActionListener(this);
+				add(saveName);
+				
+				logo = Toolkit.getDefaultToolkit().getImage("logo.png");
 			}
 			public void paintComponent(Graphics g)
 			{
 				super.paintComponent(g);
+				g.drawImage(logo, 200, 100, this);
 			}
 			public void actionPerformed(ActionEvent e)
 			{
@@ -283,15 +298,15 @@ public class TrigDash extends JFrame
 		
 		public class ButtonsPanel extends JPanel implements ActionListener
 		{
-			private JButton playButton, optionsButton, instructionsButton, creditsButton;
+			private JButton playButton, optionsButton, instructionsButton;
 			public ButtonsPanel()
 			{
-				setBackground(Color.CYAN);
+				setBackground(Color.BLACK);
 				
 				/* Dimension buttonsD = new Dimension(1,150);
 				setPreferredSize(buttonsD); */
 				
-				// make buttons for "Play", "Options", "Instructions", "Credits"
+				// make buttons for "Play", "Options", "Instructions"
 				playButton = new JButton("Play");
 				playButton.addActionListener(this);
 				add(playButton);
@@ -303,10 +318,6 @@ public class TrigDash extends JFrame
 				instructionsButton = new JButton("Instructions");
 				instructionsButton.addActionListener(this);
 				add(instructionsButton);
-				
-				creditsButton = new JButton("Credits");
-				creditsButton.addActionListener(this);
-				add(creditsButton);
 			}
 			public void paintComponent(Graphics g)
 			{
@@ -324,13 +335,8 @@ public class TrigDash extends JFrame
 					
 				else if(buttonName.equals("Options"))
 					cards.show(holder,"OptionsPanel");
-
-				else if(buttonName.equals("Credits"))
-				{
-				
-					// timeLimiter.start();
-					// System.out.println(timeLimit);
-				}
+				else if(buttonName.equals("Instructions"))
+					cards.show(holder, "InstructionsHolder");
 			}
 		}
 	}
@@ -342,7 +348,7 @@ public class TrigDash extends JFrame
 		private PausePanel pp;
 		private GameOverPanel gop;
 		//private PowerupPanel pwp;
-		
+   		
 		//constructor (Card Layout)
 		public GameplayHolder()
 		{
@@ -355,14 +361,9 @@ public class TrigDash extends JFrame
 			//add PausePanel
 			pp= new PausePanel();
 			add(pp,"PausePanel");
-			//add PowerUpPanel
-			//add LearningPanel
 			//add GameOverPanel
 			gop = new GameOverPanel();
 			add(gop,"GameOverPanel");
-
-			pwp = new PowerupPanel();
-			add(pwp,"PowerupPanel");
 		}
 		
 		public void paintComponent(Graphics g)
@@ -378,6 +379,8 @@ public class TrigDash extends JFrame
 		    
 		    private int JUMPVEL = -23;
 		    private final int GRAVITY_CONSTANT = 1; 
+		    private GameTimerHandler gth;
+		    
 		    public GamePanel() 
 		    {
 			   
@@ -385,20 +388,8 @@ public class TrigDash extends JFrame
 			    addKeyListener(this);
 		        //timer that increments the framesPassed to increase background scrolling pace over time
 		        //also manipulates yvelocity as well as characters y position
-		        gameTimer = new Timer(17, new ActionListener()
-		        {
-		            public void actionPerformed(ActionEvent e)
-		            {
-		                framesPassed++;
-		                score+=25;
-		                charx += scrollVelocity;
-		                scorex += scrollVelocity;
-		                yvel+=GRAVITY_CONSTANT;
-		                if(chary+yvel<=500)
-		                    chary += yvel;		                
-		                repaint();
-		            }
-		        });		
+			    gth = new GameTimerHandler();
+		        gameTimer = new Timer(17, gth);	
 			}
 		    
 		    //method for drawing the rectangles
@@ -407,9 +398,9 @@ public class TrigDash extends JFrame
 				for(int x=0; x<rectangles.length; x++) 
 		         {                        
 					if(lethal[x] == false) //powerup
-						g.setColor(Color.CYAN);
+						g.setColor(Color.WHITE);
 					else
-						g.setColor(Color.RED); //obstacle
+						g.setColor(Color.BLACK); //obstacle
 					g.fillRect((int)rectangles[x].getX(),(int)rectangles[x].getY(),
 						(int)rectangles[x].getWidth(),(int)rectangles[x].getHeight());               
 				}
@@ -425,13 +416,10 @@ public class TrigDash extends JFrame
 			    trigger = new Rectangle(charx,chary,50,50);
 		        super.paintComponent(g);
 		        requestFocus();
-		        g.translate(-scrollVelocity * framesPassed, 0);          
+		        g.translate(-charx+100, 0);          
 				drawRectangles(g);
 				g.setColor(Color.BLACK);
-				//character hurt box drawing
-				g.drawRect((int)trigger.getX(),(int)trigger.getY(),(int)trigger.getWidth(),(int)trigger.getHeight());
-				g.drawString("Score:"+score,scorex,50);
-				//collision detection
+				
 				for(int i=0; i<rectangles.length; i++)
 				{
 					if(rectangles[i].intersects(trigger))
@@ -439,173 +427,69 @@ public class TrigDash extends JFrame
 						if(lethal[i]==false)
 						{
 							gameTimer.stop();
-							int width = (int)(rectangles[i].getWidth())+(int)(trigger.getWidth());
-							g.translate(width*-scrollVelocity,0);
-							charx+=width;
-							gameCards.show(gh,"PowerupPanel");	
+							width = (int)(rectangles[i].getWidth())+(int)(trigger.getWidth());
+							// g.translate(-scrollVelocity * framesPassed - width,0);
+							scorex+=width;
+							
+							// initialize and add PowerupPanel here so that new one
+							// is shown for each collision
+							pwp = new PowerupPanel();
+							gh.add(pwp,"PowerupPanel");
+							gameCards.show(gh,"PowerupPanel");
+							timeLimiter.start();
 						}	
-						else
+						else if(invincibility <= 0)
 						{
 							gameTimer.stop();
 							//adding score to JLabel message in the gameOver Panel
 							scoreReport.setText("Congrats! You earned "+score+" points!");
-							//taking file and converting Array
-							//using different file depending on difficulty
-							File file;
+							
 							if(difficulty == 1)
-								file = ezList;
+								hst = new HighScoreTable("ez.txt");
 							else if(difficulty == 2)
-								file = mdList;
+								hst = new HighScoreTable("md.txt");
 							else
-								file = hdList;
-							try
+								hst = new HighScoreTable("hd.txt");
+							hst.addScore(score,name);
+							//resetting the text area
+							scoreBoard.setText("");
+							//printing out top 10 scores
+							for (int n=0; n<hst.getData().length; n++)
 							{
-								fr = new Scanner(file);
-							}
-							catch
-							{
-								System.out.println("File Not Found");
-								System.exit(1);								
-							}
-							 
-							try
-							{
-								writer = new PrintWriter(file);
-							}
-							catch (FileNotFoundException e)
-							{
-								System.out.println("File Not Found");
-								System.exit(1);
-							} 
-							
-							writer.println(name+":"+score); //writing new score to file
-							writer.close();
-							 
-							int z = 0;
-							while(fr.hasNext()) //saving scores to array
-							{
-								String line = fr.nextLine();
-								if(difficulty == 1)
-									ezArray[z] = Integer.parseInt(line.substring(line.indexOf(':')+1,line.length()));
-								else if(difficulty == 2)
-									mdArray[z] = Integer.parseInt(line.substring(line.indexOf(':')+1,line.length()));
-								else if(difficulty == 3)
-									hdArray[z] = Integer.parseInt(line.substring(line.indexOf(':')+1,line.length()));
-								names[z] = line.substring(0,line.indexOf(':'));
-								z++;
-							}
-							if(difficulty == 1) //sorting
-							{								
-								//sorting by ascending order
-								for(int x=ezArray.length; x>1; x--)
+								if(n<10)
 								{
-									//finding index of largest element
-									int max = 0;									
-									for(int y =1; y<x; y++)
-									{
-										if(ezArray[y] > ezArray[max])
-											max = i;										
-									}
-									
-									int tempVal = ezArray[max];
-									String tempString = names[max];
-									ezArray[max] = ezArray[x-1];
-									names[max] = names[x-1];
-									ezArray[x-1] = tempVal;	
-									names[x-1] = tempString;								
+									String highName = hst.getData()[n].getName();
+									int highScore = hst.getData()[n].getScore();
+									System.out.println(highName+","+highScore);
+									scoreBoard.append(n+1+"."+highName+"\t"+highScore+"\n");	
 								}
-								//reversing the array
-								for(int a=0; a<((ezArray.length)/2); a++)
-								{
-									int temp = ezArray[a];
-									String tempS = names[a];
-									ezArray[a] = ezArray[ezArray.length-1-a];
-									ezArray[ezArray.length-1-a] = temp;
-									names[a] = names[names.length-1-a];
-									names[names.length-1-a] = tempS;
-									
-									
-								}								
+								
 							}
-							else if(difficulty == 2) //sorting
-							{								
-								//sorting by ascending order
-								for(int x=mdArray.length; x>1; x--)
-								{
-									//finding index of largest element
-									int max = 0;									
-									for(int y =1; y<x; y++)
-									{
-										if(mdArray[y] > mdArray[max])
-											max = i;										
-									}
-									
-									int tempVal = mdArray[max];
-									String tempString = names[max];
-									mdArray[max] = mdArray[x-1];
-									names[max] = names[x-1];
-									mdArray[x-1] = tempVal;	
-									names[x-1] = tempString;								
-								}
-								//reversing the array
-								for(int a=0; a<((mdArray.length)/2); a++)
-								{
-									int temp = mdArray[a];
-									String tempS = names[a];
-									mdArray[a] = mdArray[mdArray.length-1-a];
-									mdArray[mdArray.length-1-a] = temp;
-									names[a] = names[names.length-1-a];
-									names[names.length-1-a] = tempS;
-									
-									
-								}								
-							}
-							else if(difficulty == 3) //sorting
-							{								
-								//sorting by ascending order
-								for(int x=hdArray.length; x>1; x--)
-								{
-									//finding index of largest element
-									int max = 0;									
-									for(int y =1; y<x; y++)
-									{
-										if(hdArray[y] > hdArray[max])
-											max = i;										
-									}
-									
-									int tempVal = hdArray[max];
-									String tempString = names[max];
-									hdArray[max] = hdArray[x-1];
-									names[max] = names[x-1];
-									hdArray[x-1] = tempVal;	
-									names[x-1] = tempString;								
-								}
-								//reversing the array
-								for(int a=0; a<((hdArray.length)/2); a++)
-								{
-									int temp = hdArray[a];
-									String tempS = names[a];
-									hdArray[a] = hdArray[mdArray.length-1-a];
-									hdArray[mdArray.length-1-a] = temp;
-									names[a] = names[names.length-1-a];
-									names[names.length-1-a] = tempS;
-									
-									
-								}								
-							}
-							
-							//setting text for the scoreBoard
-							
-
-							
-							
-							
 							gameCards.show(gh,"GameOverPanel");							
 						}
 							
 						
 					}													
-				}        
+				}  
+				
+				//character hurt box drawing
+				g.drawRect((int)trigger.getX(),(int)trigger.getY(),(int)trigger.getWidth(),(int)trigger.getHeight());
+				
+				if(invincibility > 0 || flight > 0)
+					imageName = "character-purple.png";
+				else
+					imageName = "character.png";
+				
+				Image character = Toolkit.getDefaultToolkit().getImage(imageName);
+				g.drawImage(character, charx-28, chary - 46, this);
+				
+				g.drawString("Score:"+score,scorex,50);
+				if(invincibility >= 0)
+					g.drawString("Invincibility remaining: " + invincibility, scorex, 100);
+				if(flight >= 0)
+					g.drawString("Flight time remaining: " + flight, scorex, 120);
+				//collision detection
+				      
 		    }
 
 		    /*--------------------------------------LISTENERS---------------------------------------------*/
@@ -616,7 +500,7 @@ public class TrigDash extends JFrame
 		    {
 		        if(e.getKeyCode() == KeyEvent.VK_SPACE) 
 		        {
-		        	if(chary==500)
+		        	if(chary==500 || flight > 0)
 		            	yvel=JUMPVEL;
 		        }
 		        else if(e.getKeyCode() == KeyEvent.VK_ESCAPE)
@@ -626,7 +510,36 @@ public class TrigDash extends JFrame
 		        }
 		        	
 		    }
+		    
+			public class GameTimerHandler implements ActionListener
+			{
+				public void actionPerformed(ActionEvent e)
+	            {
+	                framesPassed++;
+	                score+=25;
+	                charx += scrollVelocity;
+	                scorex += scrollVelocity;
+	                yvel+=GRAVITY_CONSTANT;
+	                if(chary+yvel<=500 && chary+yvel>=0)
+	                    chary += yvel;
+	                else if(chary + yvel > 500)
+	                	chary = 500;
+	                else if(chary + yvel < 0)
+	                	chary = 0;
+	                if(framesPassed%60 == 0)
+	                {
+						flight--;
+						invincibility--;
+					}
+					scrollVelocity += 0.0001;    		                
+	                repaint();
+	            }
+			}
 		}
+		
+
+		
+		
 		//panel that is shown when user presses escape key during game play.
 		//has options for quitting the game or resuming
 		public class PausePanel extends JPanel implements ActionListener
@@ -637,9 +550,30 @@ public class TrigDash extends JFrame
 				quitButton = new JButton("quit");
 				quitButton.addActionListener(this);
 				add(quitButton);
+				
 				resumeButton = new JButton("resume");
 				resumeButton.addActionListener(this);
 				add(resumeButton);
+				
+				JLabel degRadLabel = new JLabel("Units");
+				add(degRadLabel);
+				
+				ButtonGroup degRad  = new ButtonGroup();
+				
+				JRadioButton degrees = new JRadioButton("Degrees");
+				degrees.addActionListener(this);
+				add(degrees);
+				degRad.add(degrees);
+				
+				JRadioButton radians = new JRadioButton("Radians");
+				radians.addActionListener(this);
+				add(radians);
+				degRad.add(radians);
+				
+				JRadioButton randUnits = new JRadioButton("Random");
+				randUnits.addActionListener(this);
+				add(randUnits);
+				degRad.add(randUnits);
 			}
 			public void paintComponent(Graphics g)
 			{
@@ -665,17 +599,47 @@ public class TrigDash extends JFrame
 		       		scorex = 50;
 		       		yvel = 0;
 		       		framesPassed = 0;
+		       		
+		       		scrollVelocity = permScrollVelocity;
+		       		flight = -1;
+		       		invincibility = -1;
+		       		imageName = "character.png";
+		       		
 					cards.show(holder,"HomePanel");
 				} //goes back to HomePanel
+				// set the angles array to be used in generating questions
+			// as degrees or radians
+				else if(str.equals("Degrees"))
+				{
+					for(int i = 0;i < angles.length;i++)
+						angles[i] = degrees[i];
+				}
+				else if(str.equals("Radians"))
+				{
+					for(int i = 0;i < angles.length;i++)
+						angles[i] = radians[i];
+				}
+				else if(str.equals("Random"))
+				{
+					int choose = 0;
+					for(int i = 0;i < angles.length;i++)
+					{
+						choose = (int)(Math.random()*2+0);
+						if(choose == 0)
+							angles[i] = radians[i];
+						else
+							angles[i] = degrees[i];
+					}
+				}
 			}
-
 		}
 
+		// panel shown when the user loses
 		public class GameOverPanel extends JPanel implements ActionListener
 		{
 			private JButton backHome, playAgain;
 			private JPanel buttonPanel;
-			
+			private JPanel goToOptions;
 
 			public GameOverPanel()
 			{
@@ -683,6 +647,7 @@ public class TrigDash extends JFrame
 
 				buttonPanel = new JPanel();
 				
+				// add buttons to return to home, or immediately play again
 				backHome = new JButton("Back to Home");
 				backHome.addActionListener(this);
 				buttonPanel.add(backHome);
@@ -691,11 +656,24 @@ public class TrigDash extends JFrame
 				playAgain.addActionListener(this);
 				buttonPanel.add(playAgain);
 
+				// display the user's score, as well as its ranking among all scores
 				scoreReport = new JLabel();
 				System.out.println(score);
-				add(scoreReport, BorderLayout.NORTH);
 
+				scoreBoard = new JTextArea(10,50);
+				scoreBoard.setEditable(false);
+				
+				goToOptions = new JPanel();
+				JLabel suggestion = new JLabel("Want to try a different difficulty?");
+				goToOptions.add(suggestion);
+				JButton optionsButton = new JButton("Options");
+				optionsButton.addActionListener(this);
+				goToOptions.add(optionsButton);
+
+				add(scoreReport,BorderLayout.NORTH);
 				add(buttonPanel,BorderLayout.SOUTH);
+				add(goToOptions,BorderLayout.EAST);
+				add(scoreBoard,BorderLayout.CENTER);
 			}
 			public void paintComponent(Graphics g)
 			{
@@ -703,102 +681,38 @@ public class TrigDash extends JFrame
 			}
 			public void actionPerformed(ActionEvent e)
 			{
+				// reset variables/settings for the next gameplay session
 				String str = e.getActionCommand();
+				generateObstacles();
+				score = 0;
+				charx = 50;
+				chary = 500;
+				scorex = 50;
+				yvel = 0;
+				framesPassed = 0;
+				
+				scrollVelocity = permScrollVelocity;
+				flight = -1;
+				invincibility = -1;
+				imageName = "character.png";
+				
+				gameCards.show(gh,"GamePanel");
+				
 				if(str.equals("Play Again"))
-				{
-					generateObstacles();
-					score = 0;
-		       		charx = 50;
-		       		chary = 500;
-		       		scorex = 50;
-		       		yvel = 0;
-		       		framesPassed = 0;
-					gameCards.show(gh,"GamePanel");
+				{	
 					gameTimer.start();
 
 				} //resumes game
 					
 				else if(str.equals("Back to Home"))
 				{
-					gameCards.show(gh,"GamePanel");
-					generateObstacles();
-					score = 0;
-		       		charx = 50;
-		       		chary = 500;
-		       		scorex = 50;
-		       		yvel = 0;
-		       		framesPassed = 0;
 					cards.show(holder,"HomePanel");
 				} //goes back to HomePanel
-			}
-
-
-
-
-		}
-		
-		
 				
-		//PowerUpPanel class extends JPanel implements ActionListener
-			//constructor
-				//chooses random question from array and presents in JLabel
-				//Math.Random to choose between multiple choice or free response
-				//construct Timer for timelimit
-				//construct TimerTask that decrements counter
-				//schedule Timer to run TimerTask every second
-				//if the counter is 0, then go back to GamePanel
-				//if answer is 
-	
-			//givePowerup() 
-			/*
-				use Math.random() to decide which powerup to grant
-				if flight
-				print
-					allow user to jump while not on ground
-					flight += 10
-				if invincibility
-					temporarily take away hurt box
-					invincibility +=10
-				if snail mode
-					scrollVelocity*=.9
-			 */
-			
-			//paintComponent
-				//super.paintComponent(g)
-				//if !answerRight 
-					//draw image of correct answer & provide explanation
-				//else
-					//congrats & say which powerup
-			//actionPerformed()
-				//if multiple choice					
-					//if command matches answer in answer Array 
-						//give powerup
-						//set answerRight to true
-					//else
-						//set answerRight to false 
-				//else if free response
-					//if sqrt button is pressed
-						//type sqrt sign
-					//else get text for text field
-						//if match
-							//give powerup
-							//set answerRight to true
-						//else
-							//set answerRight to false
-				//repaint()
-							
-							
-		//class GameOverPanel extends JPanel implements ActionListener
-			//constructor 
-				//add button to 'play again'
-				//add button to go back to 'home'
-				//score is equal to framespassed
-				//try catch for printer and scanner to append scores to highscores.txt
-				//take data from highscores.txt, convert to array
-				//add TextArea(uneditable) for highscore board
-					//high score board is sorted using array sort method
-			//paintComponent
-				//super.paintComponent(g)
+				else
+					cards.show(holder,"OptionsPanel");
+			}
+		}
 	}	
 
 	/*-------------- Close Ananth -----------------------------------*/
@@ -810,7 +724,8 @@ public class TrigDash extends JFrame
 	{
 		public OptionsPanel() //constructor
 		{
-			setBackground(Color.PINK);
+			setBackground(Color.WHITE);
+			setLayout(new FlowLayout(FlowLayout.CENTER,1000,40));
 			
 			//add button to return to Home
 			JButton back = new JButton("Back");
@@ -846,13 +761,20 @@ public class TrigDash extends JFrame
 			ButtonGroup degRad  = new ButtonGroup();
 			
 			JRadioButton degrees = new JRadioButton("Degrees");
+			degrees.addActionListener(this);
 			add(degrees);
 			degRad.add(degrees);
 			degrees.setSelected(true);
 			
 			JRadioButton radians = new JRadioButton("Radians");
+			radians.addActionListener(this);
 			add(radians);
 			degRad.add(radians);
+			
+			JRadioButton randUnits = new JRadioButton("Random");
+			randUnits.addActionListener(this);
+			add(randUnits);
+			degRad.add(randUnits);
 
 		}
 		public void paintComponent(Graphics g)//paintComponent
@@ -892,23 +814,240 @@ public class TrigDash extends JFrame
 				difficulty = 3;
 			}
 			
+			permScrollVelocity = scrollVelocity;
+			
+			
 			// set the angles array to be used in generating questions
 			// as degrees or radians
 			if(buttonName.equals("Degrees"))
 			{
-				for(int i = 0;i <= angles.length;i++)
+				for(int i = 0;i < angles.length;i++)
 					angles[i] = degrees[i];
 			}
 			else if(buttonName.equals("Radians"))
 			{
-				for(int i = 0;i <= angles.length;i++)
+				for(int i = 0;i < angles.length;i++)
 					angles[i] = radians[i];
+			}
+			else if(buttonName.equals("Random"))
+			{
+				int choose = 0;
+				for(int i = 0;i < angles.length;i++)
+				{
+					choose = (int)(Math.random()*2+0);
+					if(choose == 0)
+						angles[i] = radians[i];
+					else
+						angles[i] = degrees[i];
+				}
 			}
 			// System.out.println(mcLimit);
 		}
 	}
+
+	/*------------------------- Open Ananth--------------------------------*/
+	public class InstructionsHolder extends JPanel
+	{
+		private InstructionsPanel1 ip1;
+		private InstructionsPanel2 ip2;
+		private InstructionsPanel3 ip3;
+		private InstructionsPanel4 ip4;
+		private CardLayout instructionsCards;
+
+		// holds 4 instructions panels that the user can navigate between
+		public InstructionsHolder()
+		{
+			instructionsCards = new CardLayout();
+			setLayout(instructionsCards);
+
+			ip1 = new InstructionsPanel1();
+			add(ip1,"InstructionsPanel1");
+			
+			ip2 = new InstructionsPanel2();
+			add(ip2,"InstructionsPanel2");
+			
+			ip3 = new InstructionsPanel3();
+			add(ip3,"InstructionsPanel3");
+			
+			ip4 = new InstructionsPanel4();
+			add(ip4,"InstructionsPanel4");
+		}
+
+		public void paintComponent(Graphics g)
+		{
+			super.paintComponent(g);
+		}
+		
+		// first instructions panel
+		public class InstructionsPanel1 extends JPanel implements ActionListener
+		{
+			private Image screenshot1;
+			public InstructionsPanel1()
+			{
+				setBackground(Color.WHITE);
+				
+				JLabel instructionsLabel1a = new JLabel("Welcome to Trig Dash! In this game, "+
+					"you control a character that is moving forward.");
+				add(instructionsLabel1a);
+				JLabel instructionsLabel1b = new JLabel("You will encounter boxes of "+
+					"different colors. Black boxes are obstacles, while white boxes contain power-ups.");
+				add(instructionsLabel1b);
+				
+				JButton next = new JButton("Next");
+				next.addActionListener(this);
+				add(next);
+				
+				JButton back = new JButton("Back to home");
+				back.addActionListener(this);
+				add(back);
+				
+				screenshot1 = Toolkit.getDefaultToolkit().getImage("1.png");
+			}
+			public void paintComponent(Graphics g)
+			{
+				super.paintComponent(g);
+				g.drawImage(screenshot1, 50, 50, 900, 500, this);
+			}
+			public void actionPerformed(ActionEvent e)
+			{
+				String str = e.getActionCommand();
+				if(str.equals("Next"))
+					instructionsCards.next(ih);
+				else
+					cards.show(holder, "HomePanel");
+			}
+		}
+		
+		// second instructions panel
+		public class InstructionsPanel2 extends JPanel implements ActionListener
+		{
+			private Image screenshot2;
+			public InstructionsPanel2()
+			{
+				setBackground(Color.WHITE);
+				
+				JLabel instructionsLabel2 = new JLabel("Press the spacebar while your character is on the "+
+						 "ground to make him jump!");
+				JLabel instructionsLabel2b = new JLabel("Try not to hit the obstacles, but run into the white boxes "+
+						 	 "to receive a random fun powerup.");
+				add(instructionsLabel2);
+				add(instructionsLabel2b);
+
+				JButton next = new JButton("Next");
+				next.addActionListener(this);
+				add(next);
+				JButton previous = new JButton("Previous");
+				previous.addActionListener(this);
+				add(previous);
+				
+				screenshot2 = Toolkit.getDefaultToolkit().getImage("2.png");
+			}
+			public void paintComponent(Graphics g)
+			{
+				super.paintComponent(g);
+				g.drawImage(screenshot2, 50, 50, 900, 500, this);
+			}
+			public void actionPerformed(ActionEvent e)
+			{
+				String str = e.getActionCommand();
+
+				if(str.equals("Next"))
+					instructionsCards.next(ih);
+				else
+					instructionsCards.previous(ih);
+			}
+		}
+		
+		// third instructions panel
+		public class InstructionsPanel3 extends JPanel implements ActionListener
+		{
+			private Image screenshot3;
+			public InstructionsPanel3()
+			{
+				setBackground(Color.WHITE);
+				
+				JLabel instructionsLabel3a = new JLabel("When you run into a white box, you have to answer a  "+
+					"unit circle question within a specified time, before gaining access to your powerup.");
+				add(instructionsLabel3a);
+				
+				JLabel instructionsLabel3b = new JLabel(" You can either earn flight, a slowed down background, or invincibility.");
+				add(instructionsLabel3b);
+
+				JButton next = new JButton("Next");
+				next.addActionListener(this);
+				add(next);
+				JButton previous = new JButton("Previous");
+				previous.addActionListener(this);
+				add(previous);
+				
+				screenshot3 = Toolkit.getDefaultToolkit().getImage("3.png");
+			}
+			public void paintComponent(Graphics g)
+			{
+				super.paintComponent(g);
+				g.drawImage(screenshot3, 50, 50, 900, 500, this);
+			}
+			public void actionPerformed(ActionEvent e)
+			{
+				String str = e.getActionCommand();
+
+				if(str.equals("Next"))
+					instructionsCards.next(ih);
+				else
+					instructionsCards.previous(ih);
+			}
+		}
+		
+		// final instructions panel, allow them to access gameplay
+		public class InstructionsPanel4 extends JPanel implements ActionListener
+		{
+			private Image screenshot4;
+			public InstructionsPanel4()
+			{
+				setBackground(Color.WHITE);
+				
+				JLabel instructionsLabel4a = new JLabel("The objective of the game is to survive as long as you can. Press 'esc' to pause.");
+				add(instructionsLabel4a);
+
+				JLabel instructionsLabel4b = new JLabel("If you feel that the game is too easy, go to the options menu in the home panel and change the "
+					+"difficulty.");
+				add(instructionsLabel4b);
+				
+				JLabel instructionsLabel4c = new JLabel("There, you can also change between radians and degrees. Enjoy playing Trig Dash!");
+				add(instructionsLabel4c);
+				
+				JButton next = new JButton("Play");
+				next.addActionListener(this);
+				add(next);
+				JButton previous = new JButton("Previous");
+				previous.addActionListener(this);
+				add(previous);
+				
+				screenshot4 = Toolkit.getDefaultToolkit().getImage("4.png");
+			}
+			public void paintComponent(Graphics g)
+			{
+				super.paintComponent(g);
+				g.drawImage(screenshot4, 50, 70, 900, 500, this);
+			}
+			public void actionPerformed(ActionEvent e)
+			{
+				String str = e.getActionCommand();
+
+				if(str.equals("Play"))
+				{
+					cards.show(holder,"GameplayHolder");
+					gameTimer.start();
+					instructionsCards.first(ih);
+				}
+				else
+					instructionsCards.previous(ih);
+			}
+		}
+	}
+	/*------------------------- Close Ananth--------------------------------*/
 	
-	
+	/*------------------------- Open Forest--------------------------------*/
 	public class PowerupPanel extends JPanel
 	{
 		//constructor
@@ -930,6 +1069,9 @@ public class TrigDash extends JFrame
 		
 		private String longFunc;
 		private String funcFormula;
+		
+		private String powerUp;
+		private JLabel powerUpLabel;
 	
 		public PowerupPanel() //constructor
 		{
@@ -955,11 +1097,15 @@ public class TrigDash extends JFrame
 			private JTextField answerField;
 			private int questionType;
 			private String questionAngle;
-			// private TimeLimitHandler tlh;
+			private TimeLimitHandler tlh;
+			private int timeLimit;
+			private String timeLimitString;
 			
 			public QuestionPanel()
 			{
-				setBackground(Color.PINK);
+				setBackground(Color.WHITE);
+				
+				setLayout(new FlowLayout(FlowLayout.CENTER,1000,50));
 				
 				//chooses random angle from array and presents in JLabel
 				//for question
@@ -1005,7 +1151,7 @@ public class TrigDash extends JFrame
 					answerField.addActionListener(this);
 					add(answerField);
 					
-					//timeLimit = frqLimit;
+					timeLimit = frqLimit;
 				}
 				else
 				{
@@ -1017,18 +1163,24 @@ public class TrigDash extends JFrame
 					JRadioButton [] choices = new JRadioButton[4];
 					ButtonGroup choiceGroup = new ButtonGroup();
 					
-					choices[choices.length-1] = new JRadioButton(answers[trigRow][angleIndex]);
+					String [] answerChoice = new String[4];
+					answerChoice[0] = answers[trigRow][angleIndex];
 					
-					for(int i = 0;i <= choices.length-2;i++)
+					choices[0] = new JRadioButton(answerChoice[0]);
+					
+					for(int i = 1;i <= choices.length-1;i++)
 					{
 						// randomly choose any answer in the answer array,
 						// while making sure it is not the correct answer
-						while(answerCol == angleIndex && answerRow == trigRow)
+						while(answers[answerRow][answerCol].equals(answerChoice[0])
+							  || answers[answerRow][answerCol].equals(answerChoice[1])
+							  || answers[answerRow][answerCol].equals(answerChoice[2]))
 						{
 							answerCol = (int)(Math.random()*16+0);
 							answerRow = (int)(Math.random()*3+0);
 						}
-						choices[i] = new JRadioButton(answers[answerRow][answerCol]);
+						answerChoice[i] = answers[answerRow][answerCol];
+						choices[i] = new JRadioButton(answerChoice[i]);
 						
 						answerCol = angleIndex;
 						answerRow = trigRow;
@@ -1043,8 +1195,10 @@ public class TrigDash extends JFrame
 						add(choices[i]);
 					}
 					
-					//timeLimit = mcLimit;
+					timeLimit = mcLimit;
 				}
+				tlh = new TimeLimitHandler();
+				timeLimiter = new Timer(1000,tlh);
 			}
 		
 			public void shuffle(JRadioButton [] buttons)
@@ -1062,27 +1216,46 @@ public class TrigDash extends JFrame
 				}
 			}
 	
-			//givePowerup() 
-			/*
-				use Math.random() to decide which powerup to grant
-				if flight
-				print
-					allow user to jump while not on ground
-					flight += 10
-				if invincibility
-					temporarily take away hurt box
-					invincibility +=10
-				if snail mode
-					scrollVelocity*=.9
-			 */
+			
+			public void givePowerup() //givePowerup()
+			{ 
+				//use Math.random() to decide which powerup to grant
+				//if flight
+				int rand = (int)(Math.random()*3+1);
+				if(rand == 1)
+				{
+					// allow user to jump while not on ground
+					flight = 10;
+					powerUp = "You can fly now! Just keep pressing space.";
+				}
+				else if(rand == 2)
+				{
+					// temporarily take away hurt box
+					invincibility = 10;
+					powerUp = "You are now invincible!";
+				}
+				else if(rand == 3)
+				{
+					// snailode
+					scrollVelocity*=.8;
+					powerUp = "The game has slowed down!";
+				}
+				powerUpLabel.setText(powerUp);
+				powerUpLabel.setVisible(true);
+				
+				score+=1000;
+			}
 			
 			public void paintComponent(Graphics g)//paintComponent
 			{
+				// g.setFont(font);
 				super.paintComponent(g);
 				//if !answerRight 
 					//draw image of correct answer & provide explanation
 				//else
 					//congrats & say which powerup
+				timeLimitString = "Time remaining: " + timeLimit;
+				g.drawString(timeLimitString,100,100);
 			}
 			//actionPerformed()
 			public void actionPerformed(ActionEvent e)
@@ -1094,7 +1267,7 @@ public class TrigDash extends JFrame
 					System.out.println("answer selected");
 					if(buttonName.equals(answers[trigRow][angleIndex]))//if command matches answer in answer Array 
 					{	
-						//give powerup
+						givePowerup();//give powerup
 						answerRight.setVisible(true);
 					}
 					else //else
@@ -1102,6 +1275,7 @@ public class TrigDash extends JFrame
 						answerWrong.setVisible(true);
 						correct = false;
 					}
+					timeLimiter.stop();
 					questionCards.show(pwp,"FeedbackPanel");
 				}
 				else //else if free response
@@ -1118,7 +1292,7 @@ public class TrigDash extends JFrame
 						typedText = answerField.getText();
 						if(typedText.equals(answers[trigRow][angleIndex])) //if match
 						{
-							//give powerup
+							givePowerup();//give powerup
 							//set answerRight visible
 							answerRight.setVisible(true);
 						}
@@ -1127,11 +1301,31 @@ public class TrigDash extends JFrame
 							answerWrong.setVisible(true);
 							correct = false; 
 						}
-				
+						timeLimiter.stop();
 						questionCards.show(pwp,"FeedbackPanel");
 					}
 				}
 				fp.repaint(); //repaint FeedbackPanel to draw arc if necessary
+			}
+			
+			public class TimeLimitHandler implements ActionListener
+			{
+				public void actionPerformed(ActionEvent e)
+				{
+					timeLimit--;
+					System.out.println(timeLimit);
+					qp.repaint();
+					
+					if(timeLimit == 0)
+					{
+						answerWrong.setVisible(true);
+						correct = false;
+						fp.repaint();
+						
+						questionCards.show(pwp,"FeedbackPanel");
+						timeLimiter.stop();
+					}
+				}
 			}
 		}		
 		public class FeedbackPanel extends JPanel implements ActionListener
@@ -1140,11 +1334,14 @@ public class TrigDash extends JFrame
 			
 			public FeedbackPanel()
 			{
-				setBackground(Color.YELLOW);
+				setBackground(Color.WHITE);
+				powerUp = "";
 				
-				answerRight = new JLabel("Congratz");
+				answerRight = new JLabel("Congratulations!");
 				add(answerRight);
 				answerRight.setVisible(false);
+				
+				
 				
 				String explanation = "Incorrect. As shown in the unit circle, the "
 									 + longFunc + " of "  + degrees[angleIndex]
@@ -1155,6 +1352,10 @@ public class TrigDash extends JFrame
 				answerWrong = new JLabel(explanation);
 				add(answerWrong);
 				answerWrong.setVisible(false);
+				
+				powerUpLabel = new JLabel(powerUp);
+				add(powerUpLabel);
+				powerUpLabel.setVisible(false);
 				
 				JButton backToGame = new JButton("Back to game");
 				backToGame.addActionListener(this);
@@ -1179,6 +1380,7 @@ public class TrigDash extends JFrame
 			}
 			public void actionPerformed(ActionEvent e)
 			{
+				charx+=width;
 				gameCards.show(gh,"GamePanel");
 				gameTimer.start();
 			}
